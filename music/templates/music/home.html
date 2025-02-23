@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music Streaming</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+  <style>
+   
+    body {
+  background-color: #0A192F; /* Dark Navy background */
+  color: #CCD6F6;           /* Light blue text */
+  font-family: 'Poppins', sans-serif;
+}
+
+    /* Left panel: playlists and songs list */
+    
+    .playlist-container {
+  height: 100vh;
+  overflow-y: auto;
+  background-color: #112240; /* Dark navy background */
+  padding: 20px;
+  border-right: 2px solid #0A192F; /* Matching dark border */
+}
+
+    /* Playlist items */
+    .playlist-item {
+      padding: 12px;
+      cursor: pointer;
+      border-radius: 5px;
+      transition: background 0.3s ease-in-out;
+      background-color: #262626;
+      color: #E0E0E0;
+    }
+    .playlist-item:hover {
+      background-color: #333333;
+    }
+    .song-container {
+      text-align: center;
+      padding: 20px;
+    }
+    .player-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .song-title {
+      font-size: 30px;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    .song-artist {
+      font-size: 22px;
+      color: #BBBBBB;
+      margin-bottom: 15px;
+    }
+    #songCover {
+      width: 350px;
+      height: 350px;
+      object-fit: cover;
+      border-radius: 15px;
+      border: 5px solid #007ACC; /* Accent blue border */
+      transition: transform 0.3s;
+      margin-bottom: 15px;
+    }
+    /* Audio player */
+    #audioPlayer {
+      width: 80%;
+      max-width: 400px;
+      pointer-events: auto;
+      z-index: 10;
+      position: relative;
+    }
+    #audioPlayer.audio-hidden {
+      display: block;
+      visibility: hidden;
+    }
+    /* Song items in left panel */
+    .song-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px;
+      cursor: pointer;
+      background-color: #3A3A3A; /* Default neutral gray */
+      border-radius: 8px;
+      margin-bottom: 5px;
+      transition: background 0.2s;
+      color: #CCCCCC;
+    }
+    .song-item:hover {
+      background-color: #4A4A4A; /* Slightly lighter on hover */
+    }
+    /* Highlight currently playing song with cool blue */
+    .song-item.playing {
+      background-color: #007ACC !important;
+      color: #FFFFFF;
+    }
+    /* Drag handle styling */
+    .drag-handle {
+      cursor: grab;
+      margin-right: 10px;
+      color: #AAAAAA;
+      font-size: 18px;
+      user-select: none;
+    }
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+    .song-info {
+      flex-grow: 1;
+    }
+    .menu-container {
+      position: relative;
+      display: inline-block;
+    }
+    /* Three-dot button */
+    .menu-btn {
+      background: transparent;
+      border: none;
+      color: #AAAAAA;
+      font-size: 20px;
+      cursor: pointer;
+      transition: color 0.2s ease;
+    }
+    .menu-btn:hover {
+      color: #FFFFFF;
+    }
+    /* Dropdown menu */
+    .menu-content {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 120%;
+      background: #2B2B2B;
+      border-radius: 8px;
+      padding: 5px 0;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      z-index: 1000;
+      min-width: 150px;
+    }
+    .menu-content a {
+      display: block;
+      padding: 10px 15px;
+      color: #E0E0E0;
+      text-decoration: none;
+      font-size: 14px;
+      transition: background 0.3s;
+    }
+    .menu-content a:hover {
+      background: #444;
+    }
+    .show {
+      display: block;
+    }
+    .hidden {
+      display: none;
+    }
+    /* Placeholder for drag & drop */
+    .song-item.placeholder {
+      background-color: #555 !important;
+      border: 2px dashed #fff;
+      opacity: 0.7;
+      margin-bottom: 5px;
+    }
+    .song-item.dragging {
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container-fluid">
+  <div class="row">
+    <!-- Left Panel: Playlist Section -->
+    <div class="col-md-3 playlist-container">
+      <h3>Playlists</h3>
+      <!-- Single click loads a playlist -->
+      {% for playlist in playlists %}
+      <div class="playlist-item" onclick="loadPlaylist({{ playlist.id }})">
+        🎵 {{ playlist.name }}
+      </div>
+      {% empty %}
+      <p>No playlists available.</p>
+      {% endfor %}
+
+      <h4 class="mt-4">Songs in Playlist</h4>
+      <ul class="list-group" id="songList">
+        {% for song in songs %}
+        <li class="list-group-item list-group-item-dark song-item" 
+            data-url="{{ song.audio_file.url }}" 
+            data-cover="{{ song.cover_image.url }}" 
+            data-title="{{ song.title }}" 
+            data-artist="{{ song.artist }}">
+          <!-- Drag handle for reordering -->
+          <span class="drag-handle" draggable="true">☰</span>
+          <span class="song-info">
+            🎵 {{ song.title }} - {{ song.artist }}
+          </span>
+          <div class="menu-container">
+            <button class="menu-btn" onclick="toggleMenu(event)">⋮</button>
+            <div class="menu-content">
+              <a href="#" onclick="loopSong('{{ song.audio_file.url }}', event)">🔁 Loop This Song</a>
+              <a href="#" onclick="removeLoop(event)">🚫 Remove from Loop</a>
+            </div>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <!-- Right Panel: Songs Display -->
+    <div class="col-md-9 song-container">
+      <h2>{{ selected_playlist.name|default:"Select a Playlist" }}</h2>
+
+      {% if songs %}
+      <div id="nowPlaying">Click a song to play</div>
+
+      <!-- Player Wrapper -->
+      <div class="player-wrapper">
+        <!-- Song Cover Image -->
+        <img id="songCover" class="hidden" onerror="this.src='default-cover.jpg'">
+        <div id="songTitleDisplay" class="song-title hidden"></div>
+        <div id="artistDisplay" class="song-artist hidden"></div>
+        <!-- Native Audio Player below the image -->
+        <audio id="audioPlayer" controls preload="auto" class="audio-hidden"></audio>
+      </div>
+      {% else %}
+      <p>Select a playlist to view songs.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+  let audioPlayer = document.getElementById("audioPlayer");
+  let songCover = document.getElementById("songCover");
+  let nowPlaying = document.getElementById("nowPlaying");
+  let songTitleDisplay = document.getElementById("songTitleDisplay");
+  let artistDisplay = document.getElementById("artistDisplay");
+
+  let loopedSong = null;
+  let songQueue = [];
+  let currentIndex = 0;
+  let draggedItem = null;
+  let placeholder = null;
+
+  // Listen for buffering complete event on the main player.
+  audioPlayer.addEventListener("canplaythrough", function() {
+    console.log("Main audio buffered and ready.");
+  });
+
+  // Play a song and update the UI.
+  function playSong(songElement) {
+    let parent = songElement.closest('.song-item');
+    let songUrl = parent.getAttribute("data-url");
+    let coverUrl = parent.getAttribute("data-cover");
+    let songTitle = parent.getAttribute("data-title");
+    let artist = parent.getAttribute("data-artist");
+
+    if (!songUrl) {
+      console.error("Song URL not found!");
+      return;
+    }
+
+    // Remove "playing" class from all song items
+    document.querySelectorAll('.song-item').forEach(item => item.classList.remove('playing'));
+    // Mark the current song item as playing
+    parent.classList.add("playing");
+
+    audioPlayer.src = songUrl;
+    // Remove the audio-hidden class so controls become visible
+    audioPlayer.classList.remove("audio-hidden");
+    audioPlayer.load();
+    audioPlayer.play().catch(error => console.error("Playback failed:", error));
+
+    nowPlaying.innerHTML = "Now Playing: " + songTitle + " - " + artist;
+    songTitleDisplay.innerHTML = songTitle;
+    artistDisplay.innerHTML = artist;
+    songCover.src = coverUrl;
+    songCover.classList.remove("hidden");
+    songTitleDisplay.classList.remove("hidden");
+    artistDisplay.classList.remove("hidden");
+
+    songCover.onerror = function () {
+      songCover.src = "default-cover.jpg"; 
+    };
+
+    // Set looping if the current song is looped.
+    audioPlayer.loop = (loopedSong === songUrl);
+  }
+
+  // Toggle the display of the three‑dot menu.
+  function toggleMenu(event) {
+    event.stopPropagation();
+    let menu = event.target.nextElementSibling;
+    menu.classList.toggle("show");
+  }
+
+  // Global click listener to close open menus.
+  document.addEventListener("click", function(event) {
+    if (!event.target.closest('.menu-container')) {
+      document.querySelectorAll('.menu-content.show').forEach(function(menu) {
+        menu.classList.remove("show");
+      });
+    }
+  });
+
+  // Loop the selected song.
+  function loopSong(songUrl, event) {
+    event.stopPropagation();
+    loopedSong = songUrl;
+    audioPlayer.loop = true;
+    alert("Looping this song!");
+  }
+
+  // Remove looping.
+  function removeLoop(event) {
+    event.stopPropagation();
+    loopedSong = null;
+    audioPlayer.loop = false;
+    alert("Loop removed.");
+  }
+
+  // Load a new playlist.
+  function loadPlaylist(playlistId) {
+    window.location.href = "/playlist/" + playlistId + "/";
+  }
+
+  // Auto-play next song when current one ends.
+  audioPlayer.addEventListener("ended", function () {
+    if (!audioPlayer.loop && currentIndex < songQueue.length - 1) {
+      currentIndex++;
+      playSong(songQueue[currentIndex]);
+    }
+  });
+
+  // Build songQueue, attach event listeners, and enable drag & drop.
+  document.addEventListener("DOMContentLoaded", function () {
+    let songs = document.querySelectorAll(".song-item");
+    songs.forEach((song, index) => {
+      songQueue.push(song);
+      // Single click event: ignore clicks on menu or drag handle.
+      song.addEventListener("click", function (event) {
+        if (event.target.closest('.menu-container') || event.target.classList.contains("drag-handle")) return;
+        currentIndex = songQueue.indexOf(song);
+        playSong(this);
+      });
+    });
+    // Auto-play the first song if available.
+    if (songQueue.length > 0) {
+      currentIndex = 0;
+      playSong(songQueue[0]);
+    }
+
+    // Setup drag & drop using the drag handle.
+    document.querySelectorAll(".drag-handle").forEach(function(handle) {
+      handle.addEventListener("dragstart", function(e) {
+        draggedItem = this.closest(".song-item");
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", "");
+        draggedItem.classList.add("dragging");
+        // Create a visible placeholder.
+        placeholder = document.createElement("li");
+        placeholder.classList.add("song-item", "placeholder");
+        placeholder.style.height = draggedItem.offsetHeight + "px";
+        draggedItem.parentNode.insertBefore(placeholder, draggedItem.nextSibling);
+      });
+      handle.addEventListener("dragend", function(e) {
+        if (draggedItem) {
+          draggedItem.classList.remove("dragging");
+          draggedItem = null;
+        }
+        if (placeholder && placeholder.parentNode) {
+          placeholder.parentNode.removeChild(placeholder);
+          placeholder = null;
+        }
+      });
+    });
+
+    // Handle dragover and drop on song items.
+    document.querySelectorAll(".song-item").forEach(function(item) {
+      item.addEventListener("dragover", function(e) {
+        e.preventDefault();
+        if (!placeholder) return;
+        let rect = this.getBoundingClientRect();
+        let offset = e.clientY - rect.top;
+        if (offset < rect.height / 2) {
+          this.parentNode.insertBefore(placeholder, this);
+        } else {
+          this.parentNode.insertBefore(placeholder, this.nextSibling);
+        }
+        return false;
+      });
+      item.addEventListener("drop", function(e) {
+        e.preventDefault();
+        if (draggedItem && placeholder) {
+          placeholder.parentNode.insertBefore(draggedItem, placeholder);
+          if (placeholder.parentNode) {
+            placeholder.parentNode.removeChild(placeholder);
+          }
+          placeholder = null;
+          updateSongQueue();
+        }
+        return false;
+      });
+    });
+  });
+
+  // Update songQueue after reordering.
+  function updateSongQueue() {
+    songQueue = Array.from(document.querySelectorAll(".song-item"))
+      .filter(item => !item.classList.contains("placeholder"));
+  }
+</script>
+
+</body>
+</html>
