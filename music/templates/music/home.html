@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Music Streaming</title>
-  <!-- Using the official FontAwesome CDN for icons (if needed later) -->
+  <!-- FontAwesome CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-tfYH3F+EFAv1V1Dbim5s2efz13IUK3KZL9wNRk3WcXUAY4Jq9E1H4vN6cV06RfpK7fZ0MQl9Y1b6Rxq5/ZJrRw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <style>
@@ -13,7 +13,7 @@
       color: #CCD6F6;
       font-family: 'Poppins', sans-serif;
     }
-    /* Left panel: playlists and songs list */
+    /* Playlist container */
     .playlist-container {
       height: 100vh;
       overflow-y: auto;
@@ -30,7 +30,7 @@
       background-color: #262626;
       color: #E0E0E0;
       margin-bottom: 10px;
-      user-select: none; /* Prevent text selection */
+      user-select: none;
     }
     .playlist-item:hover {
       background-color: #333333;
@@ -88,7 +88,6 @@
       margin-top: 10px;
       overflow: hidden;
       position: relative;
-      pointer-events: auto;
       transition: background-color 0.2s;
     }
     .custom-progress-container.dragging {
@@ -101,7 +100,7 @@
       border-radius: 5px;
       transition: width 0.1s;
     }
-    /* Draggable knob on progress bar */
+    /* Draggable knob */
     .progress-knob {
       position: absolute;
       top: -3px;
@@ -114,13 +113,21 @@
       pointer-events: none;
       transition: left 0.1s;
     }
-    /* Custom controls (play/pause, timer & loop button) */
+    /* Custom controls container (two rows) */
     #customControls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    /* Primary control row */
+    #primaryControls {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 15px;
-      margin-top: 10px;
+      flex-wrap: wrap;
     }
     #playPauseButton, #loopToggleButton {
       border: none;
@@ -134,7 +141,30 @@
     #timeDisplay {
       font-size: 16px;
     }
-    /* Playlist Songs - Drag & Drop Ordering CSS */
+    /* Volume control styling */
+    #volumeContainer {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      /* Temporary border for debugging */
+      
+      padding: 5px;
+      border-radius: 5px;
+    }
+    #volumeControl {
+      width: 100px;
+      cursor: pointer;
+    }
+    .volume-btn {
+      border: none;
+      background-color: #007ACC;
+      border-radius: 5px;
+      padding: 8px 12px;
+      color: #FFF;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    /* Song list styles */
     #songList {
       list-style: none;
       padding: 0;
@@ -175,7 +205,7 @@
     .drag-handle:active {
       cursor: grabbing;
     }
-    /* Ensure song-info doesn't wrap */
+    /* Song info */
     .song-info {
       flex-grow: 1;
       white-space: nowrap;
@@ -241,36 +271,43 @@
 
 <div class="container-fluid">
   <div class="row">
-    <!-- Right Panel: Songs Display (Player) appears first on mobile -->
+    <!-- Right Panel: Songs Display -->
     <div class="col-md-9 song-container order-1 order-md-2">
       <h2>{{ selected_playlist.name|default:"Select a Playlist" }}</h2>
       {% if songs %}
       <div id="nowPlaying">Click a song to play</div>
       <!-- Player Wrapper -->
       <div class="player-wrapper">
-        <!-- Song Cover Image -->
+        <!-- Song Cover -->
         <img id="songCover" class="hidden" onerror="this.src='default-cover.jpg'">
         <div id="songTitleDisplay" class="song-title hidden"></div>
         <div id="artistDisplay" class="song-artist hidden"></div>
-        <!-- Hidden native audio player -->
+        <!-- Audio element -->
         <audio id="audioPlayer" preload="auto" class="audio-hidden"></audio>
         <!-- Custom Progress Bar -->
         <div id="customProgressContainer" class="custom-progress-container">
           <div id="customProgress" class="custom-progress"></div>
           <div id="progressKnob" class="progress-knob"></div>
         </div>
-        <!-- Custom Controls: Play/Pause Button, Timer, then Loop Toggle Button -->
+        <!-- Custom Controls -->
         <div id="customControls">
-          <button id="playPauseButton">Play</button>
-          <div id="timeDisplay">0:00 / 0:00</div>
-          <button id="loopToggleButton">Loop Off</button>
+          <div id="primaryControls">
+            <button id="playPauseButton">Play</button>
+            <div id="timeDisplay">0:00 / 0:00</div>
+            <button id="loopToggleButton">Loop Off</button>
+          </div>
+          <div id="volumeContainer">
+            <button id="volumeDecrease" class="volume-btn">-</button>
+            <input id="volumeControl" type="range" min="0" max="1" step="0.01" value="1" />
+            <button id="volumeIncrease" class="volume-btn">+</button>
+          </div>
         </div>
       </div>
       {% else %}
       <p>Select a playlist to view songs.</p>
       {% endif %}
     </div>
-    <!-- Left Panel: Playlist Section appears second on mobile -->
+    <!-- Left Panel: Playlist Section -->
     <div class="col-md-3 playlist-container order-2 order-md-1">
       <h3>Playlists</h3>
       {% for playlist in playlists %}
@@ -281,7 +318,6 @@
       <p>No playlists available.</p>
       {% endfor %}
       <h4 class="mt-4">Songs in Playlist</h4>
-      <!-- Use a dedicated ID for the song list -->
       <ul id="songList">
         {% for song in songs %}
         <li class="song-item" 
@@ -289,7 +325,6 @@
             data-cover="{{ song.cover_image.url }}" 
             data-title="{{ song.title }}" 
             data-artist="{{ song.artist }}">
-          <!-- Drag handle for reordering -->
           <span class="drag-handle" draggable="true">☰</span>
           <span class="song-info">
             🎵 {{ song.title }} - {{ song.artist }}
@@ -320,14 +355,13 @@
   let playPauseButton = document.getElementById("playPauseButton");
   let loopToggleButton = document.getElementById("loopToggleButton");
   let timeDisplay = document.getElementById("timeDisplay");
+  let volumeControl = document.getElementById("volumeControl");
+  let volumeDecrease = document.getElementById("volumeDecrease");
+  let volumeIncrease = document.getElementById("volumeIncrease");
 
-  // New variable to control looping state via button
   let isLooping = false;
-  
-  // Hide native controls
   audioPlayer.controls = false;
-  
-  // Update custom progress bar, knob, and timer.
+
   audioPlayer.addEventListener("timeupdate", function() {
     if (audioPlayer.duration) {
       let percent = (audioPlayer.currentTime / audioPlayer.duration) * 100;
@@ -338,21 +372,18 @@
       timeDisplay.textContent = formatTime(audioPlayer.currentTime) + " / " + formatTime(audioPlayer.duration);
     }
   });
-  
-  // Update duration when metadata is loaded.
+
   audioPlayer.addEventListener("loadedmetadata", function() {
     timeDisplay.textContent = formatTime(0) + " / " + formatTime(audioPlayer.duration);
   });
-  
-  // Format seconds to mm:ss.
+
   function formatTime(seconds) {
     let minutes = Math.floor(seconds / 60);
     let secs = Math.floor(seconds % 60);
     if (secs < 10) secs = "0" + secs;
     return minutes + ":" + secs;
   }
-  
-  // Custom Play/Pause button functionality.
+
   playPauseButton.addEventListener("click", function() {
     if (audioPlayer.paused) {
       audioPlayer.play().then(() => {
@@ -363,15 +394,29 @@
       playPauseButton.textContent = "Play";
     }
   });
-  
-  // Loop Toggle button functionality.
+
   loopToggleButton.addEventListener("click", function() {
     isLooping = !isLooping;
     audioPlayer.loop = isLooping;
     loopToggleButton.textContent = isLooping ? "Loop On" : "Loop Off";
   });
-  
-  // Enable dragging on the custom progress bar.
+
+  volumeControl.addEventListener("input", function() {
+    audioPlayer.volume = parseFloat(this.value);
+  });
+
+  volumeDecrease.addEventListener("click", function() {
+    let newVolume = Math.max(0, audioPlayer.volume - 0.1);
+    audioPlayer.volume = newVolume;
+    volumeControl.value = newVolume;
+  });
+
+  volumeIncrease.addEventListener("click", function() {
+    let newVolume = Math.min(1, audioPlayer.volume + 0.1);
+    audioPlayer.volume = newVolume;
+    volumeControl.value = newVolume;
+  });
+
   let isDraggingProgress = false;
   customProgressContainer.addEventListener("mousedown", function(e) {
     e.preventDefault();
@@ -379,41 +424,40 @@
     customProgressContainer.classList.add("dragging");
     seekAudio(e);
   });
-  
+
   document.addEventListener("mousemove", function(e) {
     if (isDraggingProgress) {
       seekAudio(e);
     }
   });
-  
+
   document.addEventListener("mouseup", function() {
     if (isDraggingProgress) {
       isDraggingProgress = false;
       customProgressContainer.classList.remove("dragging");
     }
   });
-  
-  // For touch devices.
+
   customProgressContainer.addEventListener("touchstart", function(e) {
     e.preventDefault();
     isDraggingProgress = true;
     customProgressContainer.classList.add("dragging");
     seekAudio(e);
   });
-  
+
   customProgressContainer.addEventListener("touchmove", function(e) {
     if (isDraggingProgress) {
       seekAudio(e);
     }
   });
-  
+
   customProgressContainer.addEventListener("touchend", function(e) {
     if (isDraggingProgress) {
       isDraggingProgress = false;
       customProgressContainer.classList.remove("dragging");
     }
   });
-  
+
   function seekAudio(e) {
     if (!audioPlayer.duration) return;
     let rect = customProgressContainer.getBoundingClientRect();
@@ -425,36 +469,33 @@
     customProgress.style.width = percent + "%";
     progressKnob.style.left = `calc(${percent}% - 8px)`;
   }
-  
-  // Listen for buffering complete event.
+
   audioPlayer.addEventListener("canplaythrough", function() {
     console.log("Main audio buffered and ready.");
   });
-  
-  // Play a song and update UI.
+
   function playSong(songElement) {
     let parent = songElement.closest('.song-item');
     let songUrl = parent.getAttribute("data-url");
     let coverUrl = parent.getAttribute("data-cover");
     let songTitle = parent.getAttribute("data-title");
     let artist = parent.getAttribute("data-artist");
-  
+
     if (!songUrl) {
       console.error("Song URL not found!");
       return;
     }
-  
-    // Remove "playing" class from all song items and mark this as playing.
+
     document.querySelectorAll('.song-item').forEach(item => item.classList.remove('playing'));
     parent.classList.add("playing");
-  
+
     audioPlayer.src = songUrl;
     audioPlayer.classList.remove("audio-hidden");
     audioPlayer.load();
     audioPlayer.play().then(() => {
       playPauseButton.textContent = "Pause";
     }).catch(error => console.error("Playback failed:", error));
-  
+
     nowPlaying.innerHTML = "Now Playing: " + songTitle + " - " + artist;
     songTitleDisplay.innerHTML = songTitle;
     artistDisplay.innerHTML = artist;
@@ -462,27 +503,24 @@
     songCover.classList.remove("hidden");
     songTitleDisplay.classList.remove("hidden");
     artistDisplay.classList.remove("hidden");
-  
+
     songCover.onerror = function () {
       songCover.src = "default-cover.jpg";
     };
-  
-    // Set loop based on our toggle state.
+
     audioPlayer.loop = isLooping;
-  
+
     if (window.innerWidth < 768) {
       document.querySelector('.player-wrapper').scrollIntoView({ behavior: 'smooth' });
     }
   }
-  
-  // Toggle the display of the three‑dot menu.
+
   function toggleMenu(event) {
     event.stopPropagation();
     let menu = event.target.nextElementSibling;
     menu.classList.toggle("show");
   }
-  
-  // Global click listener to close open menus.
+
   document.addEventListener("click", function(event) {
     if (!event.target.closest('.menu-container')) {
       document.querySelectorAll('.menu-content.show').forEach(function(menu) {
@@ -490,17 +528,15 @@
       });
     }
   });
-  
-  // These functions are still available from the menu if needed.
+
   function loopSong(songUrl, event) {
     event.stopPropagation();
-    // Optionally, you can synchronize the toggle button with the menu action.
     isLooping = true;
     audioPlayer.loop = true;
     loopToggleButton.textContent = "Loop On";
     alert("Looping this song!");
   }
-  
+
   function removeLoop(event) {
     event.stopPropagation();
     isLooping = false;
@@ -508,28 +544,25 @@
     loopToggleButton.textContent = "Loop Off";
     alert("Loop removed.");
   }
-  
-  // Load a new playlist.
+
   function loadPlaylist(playlistId) {
     window.location.href = "/playlist/" + playlistId + "/";
   }
-  
-  // Auto-play next song when current one ends.
+
   audioPlayer.addEventListener("ended", function () {
     if (!audioPlayer.loop && currentIndex < songQueue.length - 1) {
       currentIndex++;
       playSong(songQueue[currentIndex]);
     }
   });
-  
-  // Build songQueue, attach event listeners, and enable drag & drop reordering.
+
   let songQueue = [];
   let currentIndex = 0;
   let draggedItem = null;
   let placeholder = null;
   document.addEventListener("DOMContentLoaded", function () {
     let songs = document.querySelectorAll(".song-item");
-    songs.forEach((song, index) => {
+    songs.forEach((song) => {
       songQueue.push(song);
       song.addEventListener("click", function (event) {
         if (event.target.closest('.menu-container') || event.target.classList.contains("drag-handle")) return;
@@ -541,8 +574,7 @@
       currentIndex = 0;
       playSong(songQueue[0]);
     }
-  
-    // Setup drag & drop using the drag handle.
+
     document.querySelectorAll(".drag-handle").forEach(function(handle) {
       handle.addEventListener("dragstart", function(e) {
         draggedItem = this.closest(".song-item");
@@ -565,8 +597,7 @@
         }
       });
     });
-  
-    // Handle dragover and drop on song items.
+
     document.querySelectorAll(".song-item").forEach(function(item) {
       item.addEventListener("dragover", function(e) {
         e.preventDefault();
@@ -594,7 +625,7 @@
       });
     });
   });
-  
+
   function updateSongQueue() {
     songQueue = Array.from(document.querySelectorAll(".song-item"))
       .filter(item => !item.classList.contains("placeholder"));
